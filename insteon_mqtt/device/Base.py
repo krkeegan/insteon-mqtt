@@ -4,6 +4,7 @@
 #
 #===========================================================================
 import json
+import time
 import os.path
 from .MsgHistory import MsgHistory
 from ..Address import Address
@@ -911,19 +912,6 @@ class Base:
                           "%s with args: %s", self.label, cmd, str(kwargs))
 
     #-----------------------------------------------------------------------
-    def send_direct_cleanup(self, msg, msg_handler):
-        """Sends a Direct Message to a Device after a Failed ModemScene Cmd
-
-        Args:
-          msg (OutModemScene): The scene message that was attempted by the
-                               modem
-          on_done: Finished callback.  This is called when the command has
-                   completed.  Signature is: on_done(success, msg, data)
-        """
-        msg = Msg.OutStandard.link_cleanup(self.addr, msg.cmd1, msg.group)
-        self.send(msg, msg_handler)
-
-    #-----------------------------------------------------------------------
     def handle_received(self, msg):
         """Receives incoming message notifications from protocol
 
@@ -1048,6 +1036,16 @@ class Base:
         responders = self.db.find_group(group)
         LOG.debug("Found %s responders in group %s", len(responders), group)
         LOG.debug("Group %s -> %s", group, [i.addr.hex for i in responders])
+
+        # A device broadcast will be followed up a series of cleanup messages
+        # between the devices and sent to the modem.  Don't send anything
+        # during this time to avoid causing a collision.  Time is equal to .5
+        # second of overhead, plus .5 seconds per responer device.  This is
+        # based off the same 87 msec empircal testing performed when designing
+        # misterhouse.  Each device causes a cleanup and an ack.  Assuminng
+        # a max of three hops in each direction that is 6 * .087 or .522 per
+        # device.
+        self.protocol.set_wait_time(time.time() + .5 + (len(responders) * .5))
 
         # For each device that we're the controller of call it's handler for
         # the broadcast message.
