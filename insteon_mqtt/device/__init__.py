@@ -33,7 +33,10 @@ from .FanLinc import FanLinc
 from .IOLinc import IOLinc
 from .KeypadLinc import KeypadLinc
 from .Leak import Leak
+from .MsgHistory import MsgHistory
 from .Motion import Motion
+from .Outlet import Outlet
 from .Remote import Remote
 from .SmokeBridge import SmokeBridge
 from .Switch import Switch
+from .Thermostat import Thermostat

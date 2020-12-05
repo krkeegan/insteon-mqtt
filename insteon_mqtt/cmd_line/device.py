@@ -15,7 +15,18 @@ def linking(args, config):
         }
 
     reply = util.send(config, topic, payload, args.quiet)
-    return reply["result"]
+    return reply["status"]
+
+
+#===========================================================================
+def join(args, config):
+    topic = "%s/%s" % (args.topic, args.address)
+    payload = {
+        "cmd" : "join",
+        }
+
+    reply = util.send(config, topic, payload, args.quiet)
+    return reply["status"]
 
 
 #===========================================================================
@@ -73,6 +84,17 @@ def get_engine(args, config):
 
 
 #===========================================================================
+def get_model(args, config):
+    topic = "%s/%s" % (args.topic, args.address)
+    payload = {
+        "cmd" : "get_model",
+        }
+
+    reply = util.send(config, topic, payload, False)
+    return reply["status"]
+
+
+#===========================================================================
 def print_db(args, config):
     topic = "%s/%s" % (args.topic, args.address)
     payload = {
@@ -89,9 +111,11 @@ def on(args, config):
     payload = {
         "cmd" : "on",
         "level" : args.level,
-        "instant" : args.instant,
         "group" : args.group,
+        "reason" : args.reason,
         }
+    if args.mode:
+        payload["mode"] = args.mode
 
     reply = util.send(config, topic, payload, args.quiet)
     return reply["status"]
@@ -102,9 +126,11 @@ def off(args, config):
     topic = "%s/%s" % (args.topic, args.address)
     payload = {
         "cmd" : "off",
-        "instant" : args.instant,
         "group" : args.group,
+        "reason" : args.reason,
         }
+    if args.mode:
+        payload["mode"] = args.mode
 
     reply = util.send(config, topic, payload, args.quiet)
     return reply["status"]
@@ -116,9 +142,11 @@ def set(args, config):
     payload = {
         "cmd" : "set",
         "level" : args.level,
-        "instant" : args.instant,
         "group" : args.group,
+        "reason" : args.reason,
         }
+    if args.mode:
+        payload["mode"] = args.mode
 
     reply = util.send(config, topic, payload, args.quiet)
     return reply["status"]
@@ -129,6 +157,7 @@ def increment_up(args, config):
     topic = "%s/%s" % (args.topic, args.address)
     payload = {
         "cmd" : "increment_up",
+        "reason" : args.reason,
         }
 
     reply = util.send(config, topic, payload, args.quiet)
@@ -140,6 +169,7 @@ def increment_down(args, config):
     topic = "%s/%s" % (args.topic, args.address)
     payload = {
         "cmd" : "increment_down",
+        "reason" : args.reason,
         }
 
     reply = util.send(config, topic, payload, args.quiet)
@@ -151,9 +181,14 @@ def scene(args, config):
     topic = "%s/%s" % (args.topic, args.address)
     payload = {
         "cmd" : "scene",
-        "group" : args.group,
         "is_on" : bool(args.is_on),
+        "reason" : args.reason,
         }
+
+    try:
+        payload["group"] = int(args.group)
+    except ValueError:
+        payload["name"] = str(args.group)
 
     reply = util.send(config, topic, payload, args.quiet)
     return reply["status"]
@@ -167,6 +202,12 @@ def pair(args, config):
         }
 
     reply = util.send(config, topic, payload, args.quiet)
+
+    if reply["status"]:
+        print("Pairing may fail if the modem db is out of date.  Try running")
+        print("the following and then re-try the pair command.")
+        print("   insteont-mqtt config.py refresh modem")
+
     return reply["status"]
 
 
@@ -250,4 +291,27 @@ def db_delete(args, config):
     return reply["status"]
 
 
+#===========================================================================
+def sync(args, config):
+    topic = "%s/%s" % (args.topic, args.address)
+    payload = {
+        "cmd" : "sync",
+        "refresh" : not args.no_refresh,
+        "dry_run" : not args.run
+        }
+
+    reply = util.send(config, topic, payload, args.quiet)
+    return reply["status"]
+
+
+#===========================================================================
+def import_scenes(args, config):
+    topic = "%s/%s" % (args.topic, args.address)
+    payload = {
+        "cmd" : "import_scenes",
+        "dry_run" : not args.run
+        }
+
+    reply = util.send(config, topic, payload, args.quiet)
+    return reply["status"]
 #===========================================================================

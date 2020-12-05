@@ -7,7 +7,7 @@ from .. import log
 from .. import message as Msg
 from .. import util
 from .. import handler
-from .DeviceEntryI1 import DeviceEntryI1
+from .DeviceEntry import DeviceEntry
 
 LOG = log.get_logger()
 
@@ -38,11 +38,11 @@ class DeviceScanManagerI1:
        has been received, at which point it will pass the record onto the db
        handler.
     """
-    def __init__(self, protocol, device_db, on_done=None, num_retry=3):
+    def __init__(self, device, device_db, on_done=None, num_retry=3):
         """Constructor
 
         Args
-          protocol:  (Protocol) The Insteon Protocol object
+          device:  (Device) The Insteon Device object
           device_db: (db.Device) The device database being retrieved.
           force:     (bool) If True, force a db download.  If False, only
                      download the db if it's out of date.
@@ -54,7 +54,7 @@ class DeviceScanManagerI1:
                      retry of 3 will send once and then retry 2 more times.
         """
         self.db = device_db
-        self.protocol = protocol
+        self.device = device
         self.record = []
         self.msb = None
         self.lsb = 0xF8
@@ -66,10 +66,10 @@ class DeviceScanManagerI1:
         """Start a managed scan of a i1 device database
         """
         # Set the starting MSB
-        self._set_msb(0x0F)
+        self._set_msb(0x0F, self.on_done)
 
     #-------------------------------------------------------------------
-    def _set_msb(self, msb):
+    def _set_msb(self, msb, on_done):
         """Send the command to request the device to set the MSB
 
         Args
@@ -78,9 +78,9 @@ class DeviceScanManagerI1:
         self.msb = msb
         db_msg = Msg.OutStandard.direct(self.db.addr, 0x28, self.msb)
         msg_handler = handler.StandardCmd(db_msg, self.handle_set_msb,
-                                          on_done=self.on_done,
+                                          on_done=on_done,
                                           num_retry=self._num_retry)
-        self.protocol.send(db_msg, msg_handler)
+        self.device.send(db_msg, msg_handler)
 
     #-------------------------------------------------------------------
     def handle_set_msb(self, msg, on_done):
@@ -103,13 +103,13 @@ class DeviceScanManagerI1:
                                             self.lsb)
             msg_handler = handler.StandardCmd(db_msg,
                                               self.handle_get_lsb,
-                                              on_done=self.on_done,
+                                              on_done=on_done,
                                               num_retry=self._num_retry)
-            self.protocol.send(db_msg, msg_handler)
+            self.device.send(db_msg, msg_handler)
         else:
             LOG.warning("%s device ACK Set MSB had wrong value: %02x",
                         msg.from_addr, msg.cmd2)
-            self._set_msb(self.msb)
+            self._set_msb(self.msb, on_done)
 
     #-------------------------------------------------------------------
     def handle_get_lsb(self, msg, on_done):
@@ -138,8 +138,8 @@ class DeviceScanManagerI1:
             # we have a full record, pass to db
 
             # Convert the message to a database device entry.
-            entry = DeviceEntryI1.from_bytes(bytes([self.msb, self.lsb] +
-                                                   self.record))
+            entry = DeviceEntry.from_i1_bytes(bytes([self.msb, self.lsb] +
+                                                    self.record))
             LOG.ui("Entry: %s", entry)
             self.db.add_entry(entry)
 
@@ -150,7 +150,7 @@ class DeviceScanManagerI1:
             # in other designs I have skipped reading the rest of
             # a record if these are found
             if entry.db_flags.is_last_rec:
-                self.on_done(True, "Database received", entry)
+                on_done(True, "Database received", entry)
                 return
 
             #Jump down a distance of 2 records
@@ -162,13 +162,13 @@ class DeviceScanManagerI1:
             self.lsb = 0xF8
             self.msb -= 1
             # Request new MSB
-            self._set_msb(self.msb)
+            self._set_msb(self.msb, on_done)
         else:
             # Request the next LSB
             db_msg = Msg.OutStandard.direct(self.db.addr, 0x2B,
                                             self.lsb)
             msg_handler = handler.StandardCmd(db_msg,
                                               self.handle_get_lsb,
-                                              on_done=self.on_done,
+                                              on_done=on_done,
                                               num_retry=self._num_retry)
-            self.protocol.send(db_msg, msg_handler)
+            self.device.send(db_msg, msg_handler)

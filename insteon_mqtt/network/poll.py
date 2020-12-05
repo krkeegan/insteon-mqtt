@@ -4,6 +4,7 @@
 #
 #===========================================================================
 import errno
+import itertools
 import select
 import time
 from .. import log
@@ -14,20 +15,18 @@ LOG = log.get_logger(__name__)
 class Manager:
     """Poll based network event loop manager.
 
-    This class implements a networking event loop (poll or select)
-    using the select.poll system (so it's not supported on Windows).
+    This class implements a networking event loop (poll or select) using the
+    select.poll system (so it's not supported on Windows).
 
-    Network connections (or files, sockets, etc) should inherit from
-    the Link class which will manage the communication with this class
-    and handle reading and writing callbacks.
+    Network connections (or files, sockets, etc) should inherit from the Link
+    class which will manage the communication with this class and handle
+    reading and writing callbacks.
 
     If a link reports that it is not connected yet (or it drops the
-    connection later), the manager will poll the link at
-    Manager.min_time_out to try and reconnect it if
-    Link.retry_connect_dt() is active.
+    connection later), the manager will poll the link at Manager.min_time_out
+    to try and reconnect it if Link.retry_connect_dt() is active.
 
-    Create the manager, then the links, then call poll() to start the
-    loop.
+    Create the manager, then the links, then call poll() to start the loop.
 
         mgr = Manager()
         mgr.add( MyLink(...) )
@@ -35,10 +34,9 @@ class Manager:
         while mgr.active():
             mgr.select(time_out=1)
             # do something that requires polling here.
-
     """
-    # Minimum time out - used to poll links for reconnection and other
-    # random processing.
+    # Minimum time out - used to poll links for reconnection and other random
+    # processing.
     min_time_out = 3  # seconds
 
     # Bit flags to watch for when registering a socket for read or
@@ -60,9 +58,11 @@ class Manager:
 
         # Map of fileno to Link objects.
         self.links = {}
+        # List of links to only call poll() on.
+        self.poll_links = []
 
-        # List of unconnected link tuples (Link, time) where time is
-        # the time is the next time to try reconnecting the linnk.
+        # List of unconnected link tuples (Link, time) where time is the time
+        # is the next time to try reconnecting the linnk.
         self.unconnected = []
 
         # Time out to use when trying to reconnect links.
@@ -70,10 +70,29 @@ class Manager:
 
     #-----------------------------------------------------------------------
     def active(self):
-        """Returns non-zero if the link has active links or
-           unconnected links.
+        """Returns non-zero if the link has active links or unconnected links.
         """
         return len(self.links) + len(self.unconnected)
+
+    #-----------------------------------------------------------------------
+    def add_poll(self, link):
+        """Add a Link that is only polled.
+
+        The input link does not need a file descriptor and only has to
+        support the poll() method from the Link class.  The link closing
+        signal can be used to remove the link from the manager.
+
+        Args:
+          link (Link):  Link object to add to the manager.
+
+        """
+        LOG.debug("Polling link added: %s", link)
+        self.poll_links.append(link)
+
+        # Mirror the link signals from a regular link.  We may never use
+        # these but the symmetry might come in handy later.
+        link.signal_closing.connect(self.poll_link_closing)
+        link.signal_connected.emit(link, True)
 
     #-----------------------------------------------------------------------
     def add(self, link, connected=True):
@@ -82,27 +101,27 @@ class Manager:
         To remove a link, call link.close().
 
         Args:
-          link:     (Link) Link object to add to the manager.
-          connected (bool) True if the link is already connected.  False
+          link (Link):  Link object to add to the manager.
+          connected (bool):  True if the link is already connected.  False
                     if the manager should try and connect the link itself.
         """
         LOG.debug("Link added: %s", link)
 
-        # If the link is connected, we can get it's file descriptor
-        # and add it to the polling loop.
+        # If the link is connected, we can get it's file descriptor and add
+        # it to the polling loop.
         if connected:
             fd = link.fileno()
             self.poll.register(fd, self.READ)
 
-            # Connect the link signals so we know when it closes or
-            # needs to write data.
+            # Connect the link signals so we know when it closes or needs to
+            # write data.
             link.signal_closing.connect(self.link_closing)
             link.signal_needs_write.connect(self.link_needs_write)
 
             self.links[fd] = link
 
-            # Now that the fd is registered, we can notify others that
-            # the links is ready to read or write.
+            # Now that the fd is registered, we can notify others that the
+            # links is ready to read or write.
             link.signal_connected.emit(link, True)
 
         # For unconnected links, store them for later checking.
@@ -114,13 +133,12 @@ class Manager:
     def remove(self, link):
         """Remove a link from the manager.
 
-        To remove a link, call link.close() - this method should
-        generally not be used to remove the link.
+        To remove a link, call link.close() - this method should generally
+        not be used to remove the link.
 
         Args:
-          link:  (Link) The link to remove.  If the link isn't in the
-                 manager, nothing is done.
-
+          link (Link):  The link to remove.  If the link isn't in the
+               manager, nothing is done.
         """
         fd = link.fileno()
         if fd not in self.links:
@@ -151,16 +169,15 @@ class Manager:
     def select(self, time_out=None):
         """Run one iteration of the event loop.
 
-        This will run one select.poll() call to wait for any of the
-        link file descriptors to have data to read or write.  When a
-        Link activates for reading or writing, the various methods on
-        the link will be called to handle the action.
+        This will run one select.poll() call to wait for any of the link file
+        descriptors to have data to read or write.  When a Link activates for
+        reading or writing, the various methods on the link will be called to
+        handle the action.
 
         Arg:
-           time_out:   (int) Time out to use in seconds.  The actual time out
-                       value is is the minimum of this, the manager reconnect
-                       time out and the unconnected retry time out.
-
+           time_out (int):  Time out to use in seconds.  The actual time out
+                    value is is the minimum of this, the manager reconnect
+                    time out and the unconnected retry time out.
         """
         # Get the actual time out to use.
         time_out = Manager.min_time_out if time_out is None else time_out
@@ -175,11 +192,12 @@ class Manager:
                 # events = (fileno, bit flags) of the actions.
                 events = self.poll.poll(time_out)
             except OSError as err:
-                # This error can occur sometimes when using a timeout.
-                # It should be ignored and the poll retried.
+                # This error can occur sometimes when using a timeout.  It
+                # should be ignored and the poll retried.
                 if err.errno != errno.EINTR:
                     raise
             else:
+                # No error was thrown so break out of the while loop.
                 break
 
         # Handle any links that need to be connected.
@@ -205,15 +223,15 @@ class Manager:
             if link is None:
                 continue
 
-            # Link has data to read.  If reading has an error, clear
-            # the action flag so nothing else happens.
+            # Link has data to read.  If reading has an error, clear the
+            # action flag so nothing else happens.
             if flag & self.EVENT_READ:
                 if link.read_from_link() == -1:
                     flag = 0
 
             # Link has data to write.
             if flag & self.EVENT_WRITE:
-                link.write_to_link()
+                link.write_to_link(t)
 
             # File/socket is shutting down - close the link.
             if flag & self.EVENT_CLOSE:
@@ -227,21 +245,21 @@ class Manager:
         # any kind.  There are some cases where the MQTT client poll can
         # trigger a close - I'm not sure exactly why but it's shown up in
         # user reports.  So copy the links before iterating since closing the
-        # link mods the dict which isn't allowed.
-        for link in list(self.links.values()):
+        # link mods the dict which isn't allowed.  This isn't ideal but the
+        # number of links should be small so it probably doesn't matter.
+        for link in itertools.chain(list(self.links.values()), self.poll_links):
             link.poll(t)
 
     #-----------------------------------------------------------------------
     def link_closing(self, link):
         """Callback when a link is closing.
 
-        This is called when the Link.close() occurs.  It will remove
-        the link from the manager.  If the link.return_connect_dt()
-        returns a time, the link is added to the unconnected list for
-        later re-connection.
+        This is called when the Link.close() occurs.  It will remove the link
+        from the manager.  If the link.return_connect_dt() returns a time,
+        the link is added to the unconnected list for later re-connection.
 
         Arg:
-          link:    (Link) The link that is closing.
+          link (Link):  The link that is closing.
         """
         self.remove(link)
 
@@ -250,24 +268,37 @@ class Manager:
             data = (link, time.time() + dt)
             self.unconnected.append(data)
 
-        # Emit the connected signal to let anyone else know that the
-        # link is no longer connected.
+        # Emit the connected signal to let anyone else know that the link is
+        # no longer connected.
+        link.signal_connected.emit(link, False)
+
+    #-----------------------------------------------------------------------
+    def poll_link_closing(self, link):
+        """Callback when a poll only link is closing.
+
+        Arg:
+          link (Link):  The link that is closing.
+        """
+        self.poll_links.remove(link)
+
+        # Emit the connected signal to let anyone else know that the link is
+        # no longer connected.
         link.signal_connected.emit(link, False)
 
     #-----------------------------------------------------------------------
     def link_needs_write(self, link, needs_write):
         """Callback when a link write status changes state.
 
-        This is called when the link write status changes state.  When
-        the link has data to write, we need to add it to the write
-        notification list and then remove it when all the data has
-        been written.  This callback manages that state and is called
-        when the link.signal_needs_write is emitted.
+        This is called when the link write status changes state.  When the
+        link has data to write, we need to add it to the write notification
+        list and then remove it when all the data has been written.  This
+        callback manages that state and is called when the
+        link.signal_needs_write is emitted.
 
         Arg:
-          link:          (Link) The link changing state.
-          needs_write:   (bool) True if the link has data to write.  False
-                         if the link no longer has data to write.
+          link (Link):  The link changing state.
+          needs_write (bool):  True if the link has data to write.  False
+                      if the link no longer has data to write.
         """
         if needs_write:
             self.poll.modify(link.fileno(), self.READ_WRITE)

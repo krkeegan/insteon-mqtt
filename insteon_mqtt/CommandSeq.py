@@ -27,20 +27,23 @@ class CommandSeq:
     this library needs, it works ok.
     """
     #-----------------------------------------------------------------------
-    def __init__(self, protocol, msg=None, on_done=None):
+    def __init__(self, protocol, msg=None, on_done=None, error_stop=True):
         """Constructor
 
         Args:
-          protocol: The Protocol object to use.
-          msg:      (str) String message to pass to on_done if the
-                    sequence works.
-          on_done:  The callback to run when complete.  This will be run
-                    when there is an error or when all the commands finish.
+          protocol (Protocol): The Protocol object to use.  This can also be a
+                   device.Base object.
+          msg (str): String message to pass to on_done if the sequence works.
+          on_done: The callback to run when complete.  This will be run
+                   when there is an error or when all the commands finish.
+          error_stop (bool): True to stop the sequence if a command fails.
+                     False to continue on with the sequence.
         """
         self.protocol = protocol
 
         self._on_done = util.make_callback(on_done)
         self.msg = msg
+        self.error_stop = error_stop
         self.total = 0
 
         # List of Entry objects (see class below) to call for each step in
@@ -55,10 +58,10 @@ class CommandSeq:
         it's next in the sequence.
 
         Args:
-          func:     The function or method to call.  Must take an on_done
-                    callback argument.
-          args:     Arguments to pass to the function.
-          kwargs:   Keyword arguments to pass to the function.
+          func: The function or method to call.  Must take an on_done
+                callback argument.
+          args: Arguments to pass to the function.
+          kwargs: Keyword arguments to pass to the function.
         """
         # Sequence override on_done calls to any function but some calls need
         # to set it anyway because of kwarg name ordering requirements.  So
@@ -80,7 +83,7 @@ class CommandSeq:
         called if this is the last entry.
 
         Args:
-          msg:      The message object to send.
+          msg:  The message object to send.
           handler:  The handler to use for the message.
         """
         self.calls.append(Entry.from_msg(msg, handler))
@@ -109,12 +112,12 @@ class CommandSeq:
         If any command fails, it stops the sequence.
 
         Args:
-          success:  (bool) True for success, False for failure.
-          msg:      (str) Message result.
-          data:     Callback data.
+          success (bool):  True for success, False for failure.
+          msg (str):  str) Message result.
+          data:  Arbitrary callback data.
         """
         # Last function failed with an error.
-        if not success:
+        if not success and self.error_stop:
             self._on_done(success, msg, data)
 
         # No more calls - success.
@@ -153,7 +156,7 @@ class Entry:
           kwargs:  The keyword arguments to pass to func.
 
         Returns:
-          (Entry) Returns the contructed Entry object.
+          Entry: Returns the contructed Entry object.
         """
         obj = cls()
         obj.msg = None
@@ -173,7 +176,7 @@ class Entry:
           handler: The message handler to use.
 
         Returns:
-          (Entry) Returns the contructed Entry object.
+          Entry: Returns the contructed Entry object.
         """
         obj = cls()
         obj.func = None
@@ -196,5 +199,4 @@ class Entry:
 
         else:
             self.func(*self.args, on_done=on_done, **self.kwargs)
-
 #===========================================================================

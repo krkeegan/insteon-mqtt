@@ -26,7 +26,7 @@ this is a dummy user used to just run the server.
    ```
 
 Create a directory to install the package in and set it’s ownership
-and permissions.  The change to the new insteon user to finish the
+and permissions.  Then change to the new insteon user to finish the
 installation.
 
    ```
@@ -100,4 +100,11 @@ If everything looks OK, enable the service to start at the next boot.
 
    ```
    sudo systemctl enable insteon-mqtt
+   ```
+You can view the system logs for the process after the service is 
+enabled with this journalctl command (or by manually looking at the 
+log file).
+
+   ```
+   sudo journalctl -u insteon-mqtt.service -f
    ```

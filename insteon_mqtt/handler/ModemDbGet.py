@@ -26,9 +26,9 @@ class ModemDbGet(Base):
         """Constructor
 
         Args
-          modem_db:  (db.Modem) The database to update.
-          on_done:   The finished callback.  Calling signature:
-                         on_done( bool success, str message, data )
+          modem_db (db.Modem):  The database to update.
+          on_done:  The finished callback.  Calling signature:
+                    on_done( bool success, str message, data )
         """
         super().__init__()
 
@@ -44,8 +44,8 @@ class ModemDbGet(Base):
         database to update it's database with the info.
 
         Args:
-          protocol:  (Protocol) The Insteon Protocol object
-          msg:       Insteon message object that was read.
+          protocol (Protocol):  The Insteon Protocol object
+          msg:  Insteon message object that was read.
 
         Returns:
           Msg.UNKNOWN if we can't handle this message.
@@ -54,7 +54,7 @@ class ModemDbGet(Base):
         """
         # Import here - at file scope this makes a circular import which is
         # ok in Python>=3.5 but not 3.4.
-        from .. import db
+        from .. import db    # pylint: disable=import-outside-toplevel
 
         # Message is an ACK/NAK of the record request.
         if isinstance(msg, (Msg.OutAllLinkGetFirst, Msg.OutAllLinkGetNext)):

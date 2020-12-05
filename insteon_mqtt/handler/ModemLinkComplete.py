@@ -23,7 +23,7 @@ class ModemLinkComplete(Base):
         """Constructor
 
         Args
-          modem:    (Modem) The PLM modem to update.
+          modem (Modem):  The PLM modem to update.
         """
         super().__init__()
         self.modem = modem
@@ -33,8 +33,8 @@ class ModemLinkComplete(Base):
         """See if we can handle the message.
 
         Args:
-          protocol:  (Protocol) The Insteon Protocol object
-          msg:       Insteon message object that was read.
+          protocol (Protocol):  The Insteon Protocol object
+          msg:  Insteon message object that was read.
 
         Returns:
           Msg.UNKNOWN if we can't handle this message.
@@ -43,7 +43,7 @@ class ModemLinkComplete(Base):
         """
         # Import here - at file scope this makes a circular import which is
         # ok in Python>=3.5 but not 3.4.
-        from .. import db
+        from .. import db    # pylint: disable=import-outside-toplevel
 
         # All linking was successful.
         if isinstance(msg, Msg.InpAllLinkComplete):

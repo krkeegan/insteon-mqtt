@@ -4,6 +4,7 @@
 #
 #===========================================================================
 # flake8: noqa
+# pylint: disable=cyclic-import
 
 __doc__ = """Device and modem all link database classes.
 
@@ -12,9 +13,10 @@ devices.  The PLM modem and devices have different formats so they are
 stored in different classes.
 """
 
+from .DbDiff import DbDiff
 from .Device import Device
 from .DeviceEntry import DeviceEntry
-from .DeviceEntryI1 import DeviceEntryI1
+from .DeviceModifyManagerI1 import DeviceModifyManagerI1
 from .DeviceScanManagerI1 import DeviceScanManagerI1
 from .Modem import Modem
 from .ModemEntry import ModemEntry

@@ -16,7 +16,7 @@ def parse_args(args):
     """
     # pylint: disable=too-many-statements
     p = argparse.ArgumentParser(prog="insteon-mqtt",
-                                description="Inseton<->MQTT tool")
+                                description="Insteon<->MQTT tool")
     p.add_argument("config", metavar="config.yaml", help="Configuration "
                    "file to use.")
     sub = p.add_subparsers(help="Command help")
@@ -39,9 +39,66 @@ def parse_args(args):
                         "in the configuration.")
     sp.add_argument("-f", "--force", action="store_true",
                     help="Force the modem/device database to be downloaded.")
+    sp.add_argument("--battery", action="store_true",
+                    help="Refresh battery devices too, by default they are "
+                    "skipped.")
     sp.add_argument("-q", "--quiet", action="store_true",
                     help="Don't print any command results to the screen.")
     sp.set_defaults(func=modem.refresh_all)
+
+    #---------------------------------------
+    # modem.sync_all command
+    sp = sub.add_parser("sync-all", help="Call sync on all the devices "
+                        "in the configuration.")
+    sp.add_argument("--run", action="store_true", default=False,
+                    help="Perform the actions altering the device db to bring "
+                    "it in sync.  If not specified, will perform a dry-run "
+                    "which only lists the changes to be made.")
+    sp.add_argument("--no-refresh", action="store_true", default=False,
+                    help="Don't refresh the db before syncing.  This can "
+                    "be dangerous if the device db is out of date.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.set_defaults(func=modem.sync_all)
+
+    #---------------------------------------
+    # modem.import_scenes_all command
+    sp = sub.add_parser("import-scenes-all", help="Call import-scenes on all "
+                        "the devices in the configuration.")
+    sp.add_argument("--run", action="store_true", default=False,
+                    help="Perform the actions altering the scenes config file "
+                    "to bring it in sync.  If not specified, will perform a "
+                    "dry-run which only lists the changes to be made.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.set_defaults(func=modem.import_scenes_all)
+
+    #---------------------------------------
+    # modem.get_engine_all command
+    sp = sub.add_parser("get-engine-all", help="Call get-engine on the "
+                        "devices in the configuration.")
+    sp.add_argument("--battery", action="store_true",
+                    help="Run get-engine on battery devices too, by default "
+                         "they are skipped.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.set_defaults(func=modem.get_engine_all)
+
+    #---------------------------------------
+    # modem.factory_reset command
+    sp = sub.add_parser("factory-reset", help="Perform a remote factory "
+                        "reset.  Currently only supported on the modem.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.set_defaults(func=modem.factory_reset)
+
+    #---------------------------------------
+    # modem.get_devices command
+    sp = sub.add_parser("get-devices", help="Return a list of all the devices "
+                        "that the modem knows about.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.set_defaults(func=modem.get_devices)
 
     #---------------------------------------
     # device.linking command
@@ -54,6 +111,15 @@ def parse_args(args):
                     help="Don't print any command results to the screen.")
     sp.add_argument("address", help="Device address or name.")
     sp.set_defaults(func=device.linking)
+
+    #---------------------------------------
+    # device.join command
+    sp = sub.add_parser("join", help="Join the device to the modem. "
+                        "Allows the modem to talk to the device.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.add_argument("address", help="Device address or name.")
+    sp.set_defaults(func=device.join)
 
     #---------------------------------------
     # device.refresh command
@@ -88,30 +154,48 @@ def parse_args(args):
     sp.set_defaults(func=device.get_engine)
 
     #---------------------------------------
+    # device.get_model command
+    sp = sub.add_parser("get-model", help="Get device model information.")
+    sp.add_argument("address", help="Device address or name.")
+    sp.set_defaults(func=device.get_model)
+
+    #---------------------------------------
     # device.on command
     sp = sub.add_parser("on", help="Turn a device on.")
     sp.add_argument("-l", "--level", metavar="level", type=int, default=255,
                     help="Level to use for dimmers (0-255)")
-    sp.add_argument("-i", "--instant", action="store_true",
-                    help="Instant (rather than ramping) on.")
     sp.add_argument("-q", "--quiet", action="store_true",
                     help="Don't print any command results to the screen.")
     sp.add_argument("-g", "--group", type=int, default=0x01,
                     help="Group (button) number to turn on for multi-button "
                     "devices.")
+    sp.add_argument("-r", "--reason", metavar="reason", type=str, default="",
+                    help="Reason message to send with the command.  No "
+                    "message with use 'command'.")
+    gp = sp.add_mutually_exclusive_group()
+    gp.add_argument("-i", "--instant", dest="mode", action="store_const",
+                    const="instant", help="Instant (rather than ramping) on.")
+    gp.add_argument("-f", "--fast", dest="mode", action="store_const",
+                    const="fast", help="Send an Insteon fast on command.")
     sp.add_argument("address", help="Device address or name.")
     sp.set_defaults(func=device.on)
 
     #---------------------------------------
     # device.set command
     sp = sub.add_parser("set", help="Turn a device to specific level.")
-    sp.add_argument("-i", "--instant", action="store_true",
-                    help="Instant (rather than ramping) on.")
     sp.add_argument("-q", "--quiet", action="store_true",
                     help="Don't print any command results to the screen.")
     sp.add_argument("-g", "--group", type=int, default=0x01,
                     help="Group (button) number to set for multi-button "
                     "devices.")
+    sp.add_argument("-r", "--reason", metavar="reason", type=str, default="",
+                    help="Reason message to send with the command.  No "
+                    "message with use 'command'.")
+    gp = sp.add_mutually_exclusive_group()
+    gp.add_argument("-i", "--instant", dest="mode", action="store_const",
+                    const="instant", help="Instant (rather than ramping) on.")
+    gp.add_argument("-f", "--fast", dest="mode", action="store_const",
+                    const="fast", help="Send an Insteon fast on command.")
     sp.add_argument("address", help="Device address or name.")
     sp.add_argument("level", type=int, default=255,
                     help="Level to use for dimmers (0-255)")
@@ -122,11 +206,17 @@ def parse_args(args):
     sp = sub.add_parser("off", help="Turn a device off.")
     sp.add_argument("-q", "--quiet", action="store_true",
                     help="Don't print any command results to the screen.")
-    sp.add_argument("-i", "--instant", action="store_true",
-                    help="Instant (rather than ramping) on.")
     sp.add_argument("-g", "--group", type=int, default=0x01,
                     help="Group (button) number to turn off for multi-button "
                     "devices.")
+    sp.add_argument("-r", "--reason", metavar="reason", type=str, default="",
+                    help="Reason message to send with the command.  No "
+                    "message with use 'command'.")
+    gp = sp.add_mutually_exclusive_group()
+    gp.add_argument("-i", "--instant", dest="mode", action="store_const",
+                    const="instant", help="Instant (rather than ramping) on.")
+    gp.add_argument("-f", "--fast", dest="mode", action="store_const",
+                    const="fast", help="Send an Insteon fast on command.")
     sp.add_argument("address", help="Device address or name.")
     sp.set_defaults(func=device.off)
 
@@ -135,6 +225,9 @@ def parse_args(args):
     sp = sub.add_parser("up", help="Increments a dimmer up.")
     sp.add_argument("-q", "--quiet", action="store_true",
                     help="Don't print any command results to the screen.")
+    sp.add_argument("-r", "--reason", metavar="reason", type=str, default="",
+                    help="Reason message to send with the command.  No "
+                    "message with use 'command'.")
     sp.add_argument("address", help="Device address or name.")
     sp.set_defaults(func=device.increment_up)
 
@@ -143,6 +236,9 @@ def parse_args(args):
     sp = sub.add_parser("down", help="Decrements a dimmer up.")
     sp.add_argument("-q", "--quiet", action="store_true",
                     help="Don't print any command results to the screen.")
+    sp.add_argument("-r", "--reason", metavar="reason", type=str, default="",
+                    help="Reason message to send with the command.  No "
+                    "message with use 'command'.")
     sp.add_argument("address", help="Device address or name.")
     sp.set_defaults(func=device.increment_down)
 
@@ -151,9 +247,15 @@ def parse_args(args):
     sp = sub.add_parser("scene", help="Simulate a scene command.")
     sp.add_argument("-q", "--quiet", action="store_true",
                     help="Don't print any command results to the screen.")
+    sp.add_argument("-r", "--reason", metavar="reason", type=str, default="",
+                    help="Reason message to send with the command.  No "
+                    "message with use 'scene'.")
     sp.add_argument("address", help="Device address or name.")
-    sp.add_argument("group", type=int, help="Group (button) number of the "
-                    "scene to trigger (use 0x01 for single buttons.")
+    sp.add_argument("group", help="Group (button) number of the "
+                    "scene to trigger (use 1 for single buttons.) "
+                    "For modem scenes the group can alternatively be the "
+                    "scene name as defined in a scenes.yaml file."
+                    )
     sp.add_argument("is_on", type=int, default=1, choices=[0, 1],
                     help="1 to turn the scene on, 0 to turn it off.")
     sp.set_defaults(func=device.scene)
@@ -254,6 +356,34 @@ def parse_args(args):
     sp = sub.add_parser("print-db", help="Print the current device database")
     sp.add_argument("address", help="Device address or name.")
     sp.set_defaults(func=device.print_db)
+
+    #---------------------------------------
+    # device.sync
+    sp = sub.add_parser("sync", help="Sync the defined scenes with device db")
+    sp.add_argument("address", help="Device address or name.")
+    sp.add_argument("--run", action="store_true", default=False,
+                    help="Perform the actions altering the device db to bring "
+                    "it in sync.  If not specified, will perform a dry-run "
+                    "which only lists the changes to be made.")
+    sp.add_argument("--no-refresh", action="store_true", default=False,
+                    help="Don't refresh the db before syncing.  This can "
+                    "be dangerous if the device db is out of date.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.set_defaults(func=device.sync)
+
+    #---------------------------------------
+    # device.import_scenes
+    sp = sub.add_parser("import-scenes", help="Import all of the scenes "
+                        "defined on the device into the scenes config file.")
+    sp.add_argument("address", help="Device address or name.")
+    sp.add_argument("--run", action="store_true", default=False,
+                    help="Perform the actions altering the scenes config file "
+                    " to bring it in sync.  If not specified, will perform a "
+                    "dry-run which only lists the changes to be made.")
+    sp.add_argument("-q", "--quiet", action="store_true",
+                    help="Don't print any command results to the screen.")
+    sp.set_defaults(func=device.import_scenes)
 
     return p.parse_args(args)
 

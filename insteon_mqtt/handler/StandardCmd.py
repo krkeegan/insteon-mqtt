@@ -26,19 +26,22 @@ class StandardCmd(Base):
     to the callback set in the constructor which is usually a method on the
     device to handle the result (or the ACK that the command went through).
     """
-    def __init__(self, msg, callback, on_done=None, num_retry=0):
+    def __init__(self, msg, callback, on_done=None, num_retry=3):
         """Constructor
 
         Args
-          msg:       (OutStandard) The output message that was sent.  The
-                     reply must match the address and msg.cmd1 field to be
-                     processed by this handler.
-          callback:  Callback function to pass InpStandard messages that match
-                     the output to.  Signature: callback(message, on_done).
-          num_retry: (int) The number of times to retry the message if the
-                     handler times out without returning Msg.FINISHED.
-                     This count does include the initial sending so a
-                     retry of 3 will send once and then retry 2 more times.
+          msg (OutStandard):  The output message that was sent.  The
+              reply must match the address and msg.cmd1 field to be
+              processed by this handler.
+          callback:  The message handler callback. This is called when a
+                     matching message is read.  Calling signature:
+                     callback( msg, on_done )
+          on_done: The finished callback.  Calling signature:
+                   on_done( bool success, str message, data )
+          num_retry (int):  The number of times to retry the message if the
+                    handler times out without returning Msg.FINISHED.
+                    This count does include the initial sending so a
+                    retry of 3 will send once and then retry 2 more times.
         """
         super().__init__(on_done, num_retry)
 
@@ -55,8 +58,8 @@ class StandardCmd(Base):
         callback.
 
         Args:
-          protocol:  (Protocol) The Insteon Protocol object
-          msg:       Insteon message object that was read.
+          protocol (Protocol):  The Insteon Protocol object
+          msg: Insteon message object that was read.
 
         Returns:
           Msg.UNKNOWN if we can't handle this message.

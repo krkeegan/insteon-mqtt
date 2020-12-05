@@ -31,13 +31,13 @@ class DeviceDbGet(Base):
         The message input is a string to help with logging the result.
 
         Args:
-          device_db: (db.Device) The device database being retrieved.
-          on_done:   Option finished callback.  This is called when the
-                     handler is finished for any reason.
-          num_retry: (int) The number of times to retry the message if the
-                     handler times out without returning Msg.FINISHED.
-                     This count does include the initial sending so a
-                     retry of 3 will send once and then retry 2 more times.
+          device_db (db.Device):  The device database being retrieved.
+          on_done:  Option finished callback.  This is called when the
+                    handler is finished for any reason.
+          num_retry (int):  The number of times to retry the message if the
+                    handler times out without returning Msg.FINISHED.
+                    This count does include the initial sending so a
+                    retry of 3 will send once and then retry 2 more times.
         """
         super().__init__(on_done, num_retry)
         self.db = device_db
@@ -51,8 +51,8 @@ class DeviceDbGet(Base):
         update it's database with the info.
 
         Args:
-          protocol:  (Protocol) The Insteon Protocol object
-          msg:       Insteon message object that was read.
+          protocol (Protocol):  The Insteon Protocol object
+          msg:  Insteon message object that was read.
 
         Returns:
           Msg.UNKNOWN if we can't handle this message.
@@ -61,7 +61,7 @@ class DeviceDbGet(Base):
         """
         # Import here - at file scope this makes a circular import which is
         # ok in Python>=3.5 but not 3.4.
-        from .. import db
+        from .. import db  # pylint: disable=import-outside-toplevel
 
         # Probably an echo back of our sent message.  See if the message
         # matches the address we sent to and assume it's the ACK/NAK message.
@@ -86,8 +86,10 @@ class DeviceDbGet(Base):
                 return Msg.CONTINUE
 
             elif msg.flags.type == Msg.Flags.Type.DIRECT_NAK:
-                LOG.error("%s device NAK error: %s", msg.from_addr, msg)
-                self.on_done(False, "Database command NAK", None)
+                LOG.error("%s device NAK error: %s, Message: %s",
+                          msg.from_addr, msg.nak_str(), msg)
+                self.on_done(False, "Database command NAK. " + msg.nak_str(),
+                             None)
                 return Msg.FINISHED
 
             else:

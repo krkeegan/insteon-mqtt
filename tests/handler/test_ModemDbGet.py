@@ -2,6 +2,7 @@
 #
 # Tests for: insteont_mqtt/handler/ModemGetDb.py
 #
+# pylint: disable=attribute-defined-outside-init
 #===========================================================================
 import insteon_mqtt as IM
 import insteon_mqtt.message as Msg
@@ -10,11 +11,13 @@ import insteon_mqtt.message as Msg
 class Test_ModemDbGet:
     def test_acks(self):
         calls = []
-        def callback(msg):
+
+        def callback(success, msg, done):
             calls.append(msg)
 
         proto = MockProtocol()
-        handler = IM.handler.ModemDbGet(callback)
+        db = Mockdb()
+        handler = IM.handler.ModemDbGet(db, callback)
 
         get_first = Msg.OutAllLinkGetFirst(is_ack=True)
         get_next = Msg.OutAllLinkGetNext(is_ack=True)
@@ -28,7 +31,7 @@ class Test_ModemDbGet:
 
         r = handler.msg_received(proto, get_nak)
         assert r == Msg.FINISHED
-        assert calls == [None]
+        assert calls == ['Database download complete']
 
         r = handler.msg_received(proto, "dummy")
         assert r == Msg.UNKNOWN
@@ -36,10 +39,12 @@ class Test_ModemDbGet:
     #-----------------------------------------------------------------------
     def test_recs(self):
         calls = []
-        def callback(msg):
+
+        def callback(success, msg, done):
             calls.append(msg)
 
-        handler = IM.handler.ModemDbGet(callback)
+        db = Mockdb()
+        handler = IM.handler.ModemDbGet(db, callback)
         proto = MockProtocol()
 
         b = bytes([0x02, 0x57,
@@ -48,17 +53,26 @@ class Test_ModemDbGet:
                    0x3a, 0x29, 0x84,  # addess
                    0x01, 0x0e, 0x43])  # data
         msg = Msg.InpAllLinkRec.from_bytes(b)
-
+        test_entry = IM.db.ModemEntry(msg.addr, msg.group,
+                                      msg.db_flags.is_controller, msg.data)
         r = handler.msg_received(proto, msg)
         assert r == Msg.FINISHED
         assert isinstance(proto.sent, Msg.OutAllLinkGetNext)
         assert proto.handler == handler
-        assert calls == [msg]
+        assert db.entry == test_entry
 
 #===========================================================================
 
 
 class MockProtocol:
-    def send(self, msg, handler):
+    def send(self, msg, handler, high_priority=False, after=None):
         self.sent = msg
         self.handler = handler
+
+
+class Mockdb:
+    def save(self):
+        pass
+
+    def add_entry(self, entry):
+        self.entry = entry

@@ -12,6 +12,8 @@ from .. import log
 from .. import message as Msg
 from .. import util
 from .ModemEntry import ModemEntry
+from .DbDiff import DbDiff
+from ..CommandSeq import CommandSeq
 
 LOG = log.get_logger()
 
@@ -35,7 +37,7 @@ class Modem:
     after requesting them from the modem.
     """
     @staticmethod
-    def from_json(data, path=None):
+    def from_json(data, path=None, device=None):
         """Read a Modem database from a JSON input.
 
         The inverse of this is to_json().
@@ -44,27 +46,36 @@ class Modem:
           data:    (dict): The data to read from.
           path:    (str) The file to save the database to when changes are
                    made.
+          device:  (Modem): The Modem device object
 
         Returns:
           Modem: Returns the created Modem object.
         """
-        obj = Modem(path)
+        obj = Modem(path, device)
         for d in data['entries']:
             obj.add_entry(ModemEntry.from_json(d), save=False)
+
+        # pylint: disable=protected-access
+        obj._meta = data.get('meta', {})
 
         return obj
 
     #-----------------------------------------------------------------------
-    def __init__(self, path=None):
+    def __init__(self, path=None, device=None):
         """Constructor
 
         Args:
           path:  (str) The file to save the database to when changes are made.
+          device: (Modem) The Modem device object.
         """
         self.save_path = path
 
         # Note: unlike devices, the PLM has no delta value so there doesn't
         # seem to be any way to tell if the db value is current or not.
+
+        # Metadata storage.  Used for saving device data to persistent
+        # storage for access across reboots
+        self._meta = {}
 
         # List of ModemEntry objects in the all link database.
         self.entries = []
@@ -76,6 +87,9 @@ class Modem:
         # Map of string scene names to integer controller groups
         self.aliases = {}
 
+        # Link to the Modem device
+        self.device = device
+
     #-----------------------------------------------------------------------
     def set_path(self, path):
         """Set the save path to use for the database.
@@ -85,6 +99,32 @@ class Modem:
                   made.
         """
         self.save_path = path
+
+    #-----------------------------------------------------------------------
+    def set_meta(self, key, value):
+        """Set the metadata key to value.
+
+        Used for saving device parameters to persistent storage between
+        reboots.
+
+        Args:
+          key:    A valid python dictionary key to store the value
+          value:  A data type capable of being represented in json
+        """
+        self._meta[key] = value
+        self.save()
+
+    #-----------------------------------------------------------------------
+    def get_meta(self, key):
+        """Get the metadata key value.
+
+        Used for getting device parameters from persistent storage between
+        reboots.
+
+        Args:
+          key:    A valid python dictionary key to retreive the value from
+        """
+        return self._meta.get(key, None)
 
     #-----------------------------------------------------------------------
     def save(self):
@@ -146,6 +186,9 @@ class Modem:
         the database on the device.
         """
         self.entries = []
+        self.groups = {}
+        self.aliases = {}
+        self._meta = {}
 
         if self.save_path and os.path.exists(self.save_path):
             os.remove(self.save_path)
@@ -242,7 +285,9 @@ class Modem:
         exists = self.find(entry.addr, entry.group, entry.is_controller)
         if exists:
             if exists.data == entry.data:
-                LOG.info("Modem.add skipping existing entry: %s", entry)
+                LOG.warning("Modem add db already exists for %s grp %s %s",
+                            entry.addr, entry.group,
+                            util.ctrl_str(entry.is_controller))
                 if on_done:
                     on_done(True, "Entry already exists", exists)
                 return
@@ -312,7 +357,8 @@ class Modem:
             if entries[i].is_controller == entry.is_controller:
                 erase_idx = i
                 break
-            elif not restore:
+
+            if not restore:
                 restore = entries[i]
 
         # Since the entry was passed in, it must exist.
@@ -354,6 +400,103 @@ class Modem:
         protocol.send(msg, msg_handler)
 
     #-----------------------------------------------------------------------
+    def diff(self, rhs):
+        """Compare this database with another Modem database.
+
+        It's an error (logged and will return None) to use this on databases
+        other than for the modem.  The purpose of this method is to compare
+        two database for the same modem and generate a list of commands that
+        will cause the input rhs database to be equal to the self database.
+
+        The return value is a db.DbDiff object that contains the
+        additions and deletions needed to update rhs to match self.
+
+        Args:
+           rhs:   (db.Modem) The other device db to compare with.
+
+        Returns:
+           Returns the list changes needed in rhs to make it equal to this
+           object.
+        """
+        if not isinstance(rhs, Modem):
+            LOG.error("Error trying to compare modem databases for %s vs"
+                      " %s.  Only the same device can be differenced.",
+                      type(self).__name__, type(rhs).__name__)
+            return None
+
+        # Copy the rhs entry list of ModemEntry.  For each match
+        # that we find, we'll remove that address from the dict.  The result
+        # will be the entries that need to be removed from rhs to make it
+        # match.
+        rhsRemove = rhs.entries.copy()
+
+        delta = DbDiff(None)  # Modem db doesn't have addr
+        for entry in self.entries:
+            rhsEntry = rhs.find(entry.addr, entry.group, entry.is_controller)
+
+            # RHS is missing this entry
+            # The Modem Data bytes never matter, we ignore them entirely
+            if rhsEntry is None:
+                # Ignore certain links created by 'join' or 'pair'
+                # See notes below.
+                if not entry.is_controller:
+                    # This is a link from the pair command
+                    pass
+                elif (entry.is_controller and
+                      entry.group in (0x00, 0x01)):
+                    # This is a link from the join command
+                    pass
+                else:
+                    delta.add(entry)
+
+            # Otherwise this is match so we can note that from the list
+            # if it is there.  If there are duplicates on the left hand side,
+            # may already have been removed
+            elif rhsEntry and rhsEntry in rhsRemove:
+                rhsRemove.remove(rhsEntry)
+
+        # Ignore certain links created by 'join' or 'pair'
+        # #1 any responder link from a valid device.  These are normally
+        # created by the 'pair' command.  There is currently no way to know the
+        # groups that should exist on a device.  So we ignore all, but in the
+        # future may want to add something to each device so that we can delete
+        # erroneous entries.
+        # #2 any controller links from group 0x01 or 0x02 to a valid device,
+        # these are results from the 'join' command
+        for entry in list(rhsRemove):
+            if (not entry.is_controller and
+                    rhs.device.find(entry.addr) is not None):
+                rhsRemove.remove(entry)
+            if (entry.is_controller and entry.group in (0x00, 0x01) and
+                    rhs.device.find(entry.addr) is not None):
+                rhsRemove.remove(entry)
+
+        # Add in remaining rhs entries that where not matches as entries that
+        # need to be removed.
+        for entry in rhsRemove:
+            delta.remove(entry)
+
+        return delta
+
+    #-----------------------------------------------------------------------
+    def apply_diff(self, device, diff, on_done=None):
+        """TODO: doc
+        """
+        assert diff.addr is None  # Modem db doesn't have address
+
+        seq = CommandSeq(device, "Modem database sync complete", on_done)
+
+        # Start by removing all the entries we don't need.
+        for entry in diff.del_entries:
+            seq.add(self.delete_on_device, device.protocol, entry)
+
+        # Add the missing entries.
+        for entry in diff.add_entries:
+            seq.add(self.add_on_device, device.protocol, entry)
+
+        seq.run()
+
+    #-----------------------------------------------------------------------
     def to_json(self):
         """Convert the database to JSON format.
 
@@ -363,6 +506,7 @@ class Modem:
         entries = [i.to_json() for i in self.entries]
         return {
             'entries' : entries,
+            'meta' : self._meta
             }
 
     #-----------------------------------------------------------------------
@@ -406,5 +550,29 @@ class Modem:
 
         if save:
             self.save()
+
+    #-----------------------------------------------------------------------
+    def add_from_config(self, remote, local):
+        """Add an entry to the config database from the config file.
+
+        Is called by _load_scenes() on the modem.  Adds an entry to the next
+        available mem_loc from an entry specified in the config file.  This
+        should only be used to add an entry to a db_config database, which is
+        then compared with the actual database using diff().
+
+        Args:
+          remote (SceneDevice): The remote device to link to
+          local (SceneDevice): The local device link pair of this entry
+        """
+
+        # Generate the entry
+        group = local.group
+        if remote.is_controller:
+            group = remote.group
+        entry = ModemEntry(remote.addr, group, local.is_controller,
+                           local.link_data)
+
+        # Add the Entry to the DB
+        self.add_entry(entry, save=False)
 
 #===========================================================================

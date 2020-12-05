@@ -1,4 +1,6 @@
 __pycache__
+.*.sw*
 *.pyc
 .cache
 .coverage
+htmlcov
