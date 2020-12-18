@@ -472,6 +472,11 @@ Switch, KeypadLinc, and Dimmer all support the flags:
      signal_bits input.  If a bit is 0, then that button is a toggle button
      and will alternate on an doff signals
 
+  KeypadLinc and Dimmer support the flags:
+   
+   - ramp_rate: float in the range of 0.5 to 540 seconds which sets the default ramp
+     rate that will be used when the button is pressed
+
 IOLinc supports the flags:
 
    - mode: "latching" / "momentary-a" / "momentary-b" / "momentary-c" to
@@ -934,6 +939,18 @@ templates:
    - 'is_low' is 1 for a low battery, 0 for normal.
    - 'is_low_str' is 'on' for a low battery, 'off' for normal.
 
+Some battery sensors also issues a heartbeat every 24 hours that can be used
+to confirm that they are still working.  Presently, only the Leak sensor is
+known to use heartbeat messages. The following variables can be used for
+templates:
+
+   - "is_heartbeat" is 1 whenever a heartbeat occurs
+   - "is_heartbeat_str" is "on" whenever a heartbeat occurs
+   - "heartbeat_time" is the Unix timestamp of when the heartbeat occurred
+
+The Battery Sensor class is also the base for other battery devices that
+have additional features, namely Motion Sensors, Leak Sensors, and Remotes.
+
 A sample battery sensor topic and payload configuration is:
 
    ```
@@ -945,6 +962,10 @@ A sample battery sensor topic and payload configuration is:
      # Low battery warning
      low_battery_topic: 'insteon/{{address}}/battery'
      low_battery_payload: '{{is_low_str.upper()}}'
+
+     # Heartbeats
+     heartbeat_topic: 'insteon/{{address}}/heartbeat'
+     heartbeat_payload: '{{heartbeat_time}}'
    ```
 
 ---
@@ -996,8 +1017,6 @@ A sample leak sensor topic and payload configuration is:
    leak:
      wet_dry_topic: 'insteon/{{address}}/wet'
      wet_dry_payload: '{{state.upper()}}'
-     heartbeat_topic: 'insteon/{{address}}/heartbeat'
-     heartbeat_payload: '{{heartbeat_time}}'
    ```
 
 ---

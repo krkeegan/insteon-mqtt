@@ -66,7 +66,7 @@ class Device:
         dev_cat = data.get('dev_cat', None)
         sub_cat = data.get('sub_cat', None)
         obj.desc = None
-        if dev_cat:
+        if dev_cat is not None:
             obj.desc = catalog.find(dev_cat, sub_cat)
 
         obj.firmware = data.get('firmware', None)
@@ -184,6 +184,7 @@ class Device:
         """
         self.delta = delta
         if delta is not None:
+            self.delta = self.delta % 256  # Roll over db if it goes past 256
             self.save()
 
     #-----------------------------------------------------------------------
@@ -553,7 +554,8 @@ class Device:
 
         delta = DbDiff(self.addr)
         for entry in self.entries.values():
-            rhsEntry = rhs.find(entry.addr, entry.group, entry.is_controller)
+            rhsEntry = rhs.find(entry.addr, entry.group, entry.is_controller,
+                                entry.data[2])
 
             # RHS is missing this entry or has different data bytes we need
             # to update.
@@ -784,7 +786,8 @@ class Device:
         LOG.info("Device %s appending new record at mem %#06x", self.addr,
                  self.last.mem_loc)
 
-        seq = CommandSeq(self.device, "Device database update complete", on_done)
+        seq = CommandSeq(self.device, "Device database update complete",
+                         on_done)
 
         # Shift the current last record down 8 bytes.  Make a copy - we'll
         # only update our member var if the write works.
