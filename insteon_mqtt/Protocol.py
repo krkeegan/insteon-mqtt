@@ -499,6 +499,8 @@ class Protocol:
         """
         assert self._write_queue
 
+        LOG.debug("KRK write finished called")
+
         self._write_queue.pop(0)
         self._write_status = WriteStatus.READY_TO_WRITE
 
@@ -518,6 +520,7 @@ class Protocol:
           data (bytes): The data that was written to the link.
         """
         assert self._write_queue
+        LOG.debug("KRK Write Status: %s", self._write_status)
         assert self._write_status == WriteStatus.PENDING_WRITE
 
         # Set the status to show that the [0] message in the queue was
