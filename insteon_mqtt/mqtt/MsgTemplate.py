@@ -53,9 +53,18 @@ class MsgTemplate:
         # Keep the original string around for better log and error messages.
         self.topic_str = topic
         self.topic = None if topic is None else jinja2.Template(topic)
+        if topic is None:
+            self.topic = None
+        else:
+            self.topic = jinja2.Template(topic, trim_blocks=True,
+                                         lstrip_blocks=True)
 
         self.payload_str = payload
-        self.payload = None if payload is None else jinja2.Template(payload)
+        if payload is None:
+            self.payload = None
+        else:
+            self.payload = jinja2.Template(payload, trim_blocks=True,
+                                           lstrip_blocks=True)
 
     #-----------------------------------------------------------------------
     def load_config(self, config, topic, payload, qos=None):
