@@ -1,6 +1,6 @@
 ARG BUILD_FROM
 #FROM $BUILD_FROM
-FROM homeassistant/aarch64-base
+FROM homeassistant/aarch64-base:2021.02.0
 
 ENV LANG C.UTF-8
 
