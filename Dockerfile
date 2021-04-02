@@ -2,7 +2,7 @@ ARG BUILD_FROM
 FROM $BUILD_FROM
 
 ENV LANG C.UTF-8
-RUN apk --no-cache add python3-dev
+RUN apk add --no-cache python3-dev
 
 COPY . /opt/insteon-mqtt
 
