@@ -5,8 +5,9 @@ ENV LANG C.UTF-8
 
 COPY . /opt/insteon-mqtt
 
+RUN echo "Starting Install"
 RUN apk update
-
+RUN apk --no-cache add python3-dev
 RUN apk add --no-cache py3-pip && \
     pip3 install /opt/insteon-mqtt && \
     chmod +x /opt/insteon-mqtt/hassio/entrypoint.sh
