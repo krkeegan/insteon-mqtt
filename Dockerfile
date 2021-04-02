@@ -1,9 +1,12 @@
 ARG BUILD_FROM
-FROM $BUILD_FROM
+#FROM $BUILD_FROM
+FROM homeassistant/aarch64-base
 
 ENV LANG C.UTF-8
 
 COPY . /opt/insteon-mqtt
+
+RUN ls /
 
 RUN apk update && \
     apk --no-cache add python3-dev && \
