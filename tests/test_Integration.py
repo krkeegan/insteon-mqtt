@@ -27,6 +27,9 @@ import pytest
 import json
 from insteon_mqtt import log
 import insteon_mqtt as IM
+import __main__
+
+__main__.__version__ = IM.__version__
 
 
 def test_set_on_functions(stack):
