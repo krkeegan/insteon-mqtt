@@ -22,4 +22,5 @@ jobs:
         with:
           args: |
             --all \
+            --target . \
             --docker-hub krkeegan
