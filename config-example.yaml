@@ -113,6 +113,9 @@ insteon:
     mini_remote4:  # Remotes with 4 Buttons
       - 3f.12.d4: 'remote4'
 
+    mini_remote6:  # Remotes with 6 Buttons
+      - ab.12.cd: 'remote6'
+
     mini_remote8:  # Remotes with 8 Buttons
       - 3f.07.d4: 'remote1'
 

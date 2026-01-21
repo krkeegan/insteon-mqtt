@@ -98,8 +98,9 @@ insteon:
     # Battery powered mini remotes.
     mini_remote1: []  # Single Button Remotes
 
-
     mini_remote4: []  # Remotes with 4 Buttons
+
+    mini_remote6: []  # Remotes with 6 Buttons - RemoteLinc 2440
 
     mini_remote8: []  # Remotes with 8 Buttons
 
@@ -564,6 +565,7 @@ mqtt:
           cmd_t: "{{level_topic}}"
           stat_t: "{{state_topic}}"
           brightness: true
+          sup_clrm: ["brightness"]
           schema: "json"
           device: "{{device_info}}"
           json_attr_t: "{{state_topic}}"
@@ -1406,6 +1408,7 @@ mqtt:
           cmd_t: "{{level_topic}}"
           stat_t: "{{state_topic}}"
           brightness: true
+          sup_clrm: ["brightness"]
           schema: "json"
           device: "{{device_info}}"
           json_attr_t: "{{state_topic}}"
@@ -1582,6 +1585,11 @@ mqtt:
           avty_t: "{{availability_topic}}"
           device: "{{device_info}}"
           brightness: "{{is_dimmable|lower()}}"
+          sup_clrm: "{%- if is_dimmable -%}
+                      brightness
+                    {%- else -%}
+                      onoff
+                    {%- endif -%}"
           cmd_t: "{%- if is_dimmable -%}
                     {{dimmer_level_topic}}
                   {%- else -%}

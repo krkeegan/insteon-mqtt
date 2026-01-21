@@ -26,6 +26,7 @@
     - [Device type 'leak' entities](#device-type-leak-entities)
     - [Device type 'mini_remote1' entities](#device-type-mini_remote1-entities)
     - [Device type 'mini_remote4' entities](#device-type-mini_remote4-entities)
+    - [Device type 'mini_remote6' entities](#device-type-mini_remote6-entities)
     - [Device type 'mini_remote8' entities](#device-type-mini_remote8-entities)
     - [Device type 'motion' entities](#device-type-motion-entities)
     - [Device type 'smoke_bridge' entities](#device-type-smoke_bridge-entities)
@@ -290,6 +291,7 @@ mqtt:
         component: "light"
         config:
           brightness: false
+          sup_clrm: ["onoff"]
           val_tpl: ""
 ```
 
@@ -663,6 +665,18 @@ to the buttons.
 |button7|binary_sensor|not usable|
 |button8|binary_sensor|not usable|
 |battery|binary_sensor|battery good/low|
+
+### Device type 'mini_remote6' entities
+
+|Name|Component Type|Purpose|
+|---|---|---|
+|button1|binary_sensor|'a' switch|
+|button2|binary_sensor|'b' switch|
+|button3|binary_sensor|'c' switch|
+|button4|binary_sensor|'d' switch|
+|button5|binary_sensor|'e' switch|
+|button6|binary_sensor|'f' switch|
+|binary_sensor.NAME_battery|battery good/low|
 
 ### Device type 'mini_remote8' entities
 

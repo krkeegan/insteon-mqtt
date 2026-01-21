@@ -1,5 +1,10 @@
 # Revision Change History
 
+## [1.3.2] - Add Supported_Color_Modes; Add 6 Button Remote
+
+- Starting in HomeAssistant 2026.3 `supported_color_modes` will be a required attribute for all lights.
+- Add 6 button remote support (Remotelinc 2440) thanks @f1d094
+
 ## [1.3.1]
 
 - Also update scenes pathname on migration

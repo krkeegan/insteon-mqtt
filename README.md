@@ -7,7 +7,7 @@ integrated into and controlled from anything that can use MQTT.
 
 This package works well with HomeAssistant and can be easily [installed as an addon](docs/HA_Addon_Instructions.md) using the HomeAssistant Supervisor.
 
-Version: 1.3.1  ([History](CHANGELOG.md))
+Version: 1.3.2  ([History](CHANGELOG.md))
 
 ### Recent Breaking Changes
 
@@ -52,6 +52,7 @@ what they are and how to interpret messages from them.
 - KeypadLinc on/off and dimmer and scene controller
 - IOLinc relay and sensor module
 - Mini-remotes (4 and 8 button battery powered scene controllers)
+- RemoteLinc 2440 (6 button AAA battery powered scene controller)
 - Battery powered sensors (door, hidden door, window, etc.)
 - Leak sensors
 - Motion sensors

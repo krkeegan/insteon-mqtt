@@ -30,6 +30,7 @@ devices = {
     'leak' : (device.Leak, {}),
     'mini_remote1' : (device.Remote, {'num_button' : 1}),
     'mini_remote4' : (device.Remote, {'num_button' : 4}),
+    'mini_remote6' : (device.Remote, {'num_button' : 6}),
     'mini_remote8' : (device.Remote, {'num_button' : 8}),
     'motion' : (device.Motion, {}),
     'outlet' : (device.Outlet, {}),

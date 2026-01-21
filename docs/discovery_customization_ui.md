@@ -20,6 +20,7 @@
     - [Device type 'leak' entities](#device-type-leak-entities)
     - [Device type 'mini_remote1' entities](#device-type-mini_remote1-entities)
     - [Device type 'mini_remote4' entities](#device-type-mini_remote4-entities)
+    - [Device type 'mini_remote6' entities](#device-type-mini_remote6-entities)
     - [Device type 'mini_remote8' entities](#device-type-mini_remote8-entities)
     - [Device type 'motion' entities](#device-type-motion-entities)
     - [Device type 'smoke_bridge' entities](#device-type-smoke_bridge-entities)
@@ -243,6 +244,18 @@ to the buttons.
 |binary_sensor.NAME_btn_6|not usable|
 |binary_sensor.NAME_btn_7|not usable|
 |binary_sensor.NAME_btn_8|not usable|
+|binary_sensor.NAME_battery|battery good/low|
+
+### Device type 'mini_remote6' entities
+
+|Name|Purpose|
+|---|---|
+|binary_sensor.NAME_btn_1|'a' switch|
+|binary_sensor.NAME_btn_2|'b' switch|
+|binary_sensor.NAME_btn_3|'c' switch|
+|binary_sensor.NAME_btn_4|'d' switch|
+|binary_sensor.NAME_btn_5|'e' switch|
+|binary_sensor.NAME_btn_6|'f' switch|
 |binary_sensor.NAME_battery|battery good/low|
 
 ### Device type 'mini_remote8' entities

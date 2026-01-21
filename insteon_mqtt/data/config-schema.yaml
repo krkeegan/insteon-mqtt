@@ -88,7 +88,7 @@ insteon:
       keysrules:
         type: string
         allowed: ['switch', 'dimmer', 'battery_sensor', 'hidden_door',
-                  'motion', 'mini_remote1', 'mini_remote4',
+                  'motion', 'mini_remote1', 'mini_remote4', 'mini_remote6',
                   'mini_remote8', 'smoke_bridge', 'fan_linc',
                   'keypad_linc', 'keypad_linc_sw', 'leak', 'io_linc',
                   'outlet', 'thermostat', 'ezio4o']
